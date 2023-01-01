@@ -82,40 +82,58 @@ module user_project_wrapper #(
 /* User project is instantiated  here   */
 /*--------------------------------------*/
 
-user_proj_example mprj (
-`ifdef USE_POWER_PINS
-	.vccd1(vccd1),	// User area 1 1.8V power
-	.vssd1(vssd1),	// User area 1 digital ground
-`endif
+parameter NUM_INSTANCES = 4;
+parameter DATA_WIDTH = 32;
 
-    .wb_clk_i(wb_clk_i),
-    .wb_rst_i(wb_rst_i),
+wire [(NUM_INSTANCES+1)*DATA_WIDTH-1:0] select_dout0;
+wire [(NUM_INSTANCES+1)*DATA_WIDTH-1:0] select_dout1;
 
-    // MGMT SoC Wishbone Slave
+generate
+    genvar i;
 
-    .wbs_cyc_i(wbs_cyc_i),
-    .wbs_stb_i(wbs_stb_i),
-    .wbs_we_i(wbs_we_i),
-    .wbs_sel_i(wbs_sel_i),
-    .wbs_adr_i(wbs_adr_i),
-    .wbs_dat_i(wbs_dat_i),
-    .wbs_ack_o(wbs_ack_o),
-    .wbs_dat_o(wbs_dat_o),
+    for (i = 0; i < NUM_INSTANCES; i++) begin : memory
 
-    // Logic Analyzer
+        sky130_sram_2kbyte_1rw1r_32x512_8 sram (
+            `ifdef USE_POWER_PINS
+            .vccd1(vccd1),  // User area 1 1.8V power
+            .vssd1(vssd1),  // User area 1 digital ground
+            `endif
+            // Port 0: RW
+            .clk0  (wb_clk_i),
+            .csb0  (la_data_in[0]),
+            .web0  (la_data_in[1]),
+            .wmask0(la_data_in[5:2]),
+            .addr0 (la_data_in[14:6]),
+            .din0  (la_data_in[46:15]),
+            .dout0 (select_dout0[i*DATA_WIDTH+:DATA_WIDTH]),
+            // Port 1: R
+            .clk1 (wb_clk_i),
+            .csb1 (la_data_in[47]),
+            .addr1(la_data_in[79:48]),
+            .dout1(select_dout1[i*DATA_WIDTH+:DATA_WIDTH])
+        );
+        
+    end
+endgenerate
 
-    .la_data_in(la_data_in),
-    .la_data_out(la_data_out),
-    .la_oenb (la_oenb),
-
-    // IO Pads
-
-    .io_in (io_in),
-    .io_out(io_out),
-    .io_oeb(io_oeb),
-
-    // IRQ
-    .irq(user_irq)
+sky130_sram_2kbyte_1rw1r_32x512_8 sram (
+    `ifdef USE_POWER_PINS
+    .vccd1(vccd1),  // User area 1 1.8V power
+    .vssd1(vssd1),  // User area 1 digital ground
+    `endif
+    // Port 0: RW
+    .clk0  (wb_clk_i),
+    .csb0  (la_data_in[0]),
+    .web0  (la_data_in[1]),
+    .wmask0(la_data_in[5:2]),
+    .addr0 (la_data_in[14:6]),
+    .din0  (la_data_in[46:15]),
+    .dout0 (select_dout0[4*DATA_WIDTH+:DATA_WIDTH]),
+    // Port 1: R
+    .clk1 (wb_clk_i),
+    .csb1 (la_data_in[47]),
+    .addr1(la_data_in[79:48]),
+    .dout1(select_dout1[4*DATA_WIDTH+:DATA_WIDTH])
 );
 
 endmodule	// user_project_wrapper
